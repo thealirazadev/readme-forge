@@ -51,6 +51,18 @@ class ApiOtherError(ApiError):
     """Any other Claude API failure (HTTP error or unexpected response)."""
 
 
+class WriteError(ReadmeForgeError):
+    """Writing the README to disk failed (permissions, missing parent dir, etc.)."""
+
+    exit_code = 1
+
+
+class OverwriteRefused(ReadmeForgeError):
+    """Write refused: the target exists and confirmation could not be obtained."""
+
+    exit_code = 4
+
+
 def map_anthropic_error(exc: Exception) -> ApiError:
     """Map an anthropic SDK exception to a friendly ApiError subtype."""
     if isinstance(exc, anthropic.AuthenticationError):

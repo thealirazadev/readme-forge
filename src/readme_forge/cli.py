@@ -17,11 +17,16 @@ from readme_forge.detect import detect_languages, parse_manifests
 from readme_forge.errors import (
     ApiKeyMissingError,
     NotARepoError,
+    OverwriteRefused,
     ReadmeForgeError,
+    WriteError,
     format_error,
     map_anthropic_error,
 )
 from readme_forge.renderer import (
+    WriteAction,
+    confirm_overwrite,
+    decide_write_action,
     make_console,
     progress_step,
     render_preview,
@@ -71,6 +76,11 @@ def _get_api_key() -> str:
     help="Scan, draft, and preview the README, but write nothing.",
 )
 @click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Replace an existing README at the output path without prompting.",
+)
+@click.option(
     "--summary-json",
     is_flag=True,
     hidden=True,
@@ -82,6 +92,7 @@ def main(
     model: str | None,
     sections: str | None,
     dry_run: bool,
+    overwrite: bool,
     summary_json: bool,
 ) -> None:
     """Scan PATH and draft a README.md using the Anthropic Claude API."""
@@ -119,10 +130,32 @@ def main(
         sys.exit(exc.exit_code)
 
     output_path = Path(path) / "README.md"
-    render_preview(console, markdown_text, str(output_path), output_path.exists())
+    exists = output_path.exists()
+    render_preview(console, markdown_text, str(output_path), exists)
 
-    # Phase 2 never writes; the write gate lands with --overwrite/--output support.
-    click.echo("Dry run: nothing written." if dry_run else "Preview only: nothing written yet.")
+    try:
+        action = decide_write_action(exists, overwrite, dry_run)
+        if action is WriteAction.SKIP:
+            click.echo("Dry run: nothing written.")
+            sys.exit(0)
+        if action is WriteAction.PROMPT:
+            if not sys.stdin.isatty():
+                raise OverwriteRefused(
+                    f"{output_path} already exists; pass --overwrite to replace it"
+                )
+            if not confirm_overwrite(str(output_path), interactive=True):
+                click.echo("Not overwriting; nothing written.")
+                sys.exit(0)
+        output_path.write_text(markdown_text, encoding="utf-8")
+    except ReadmeForgeError as exc:
+        click.echo(format_error(exc.message), err=True)
+        sys.exit(exc.exit_code)
+    except OSError as exc:
+        write_error = WriteError(f"could not write {output_path}: {exc}")
+        click.echo(format_error(write_error.message), err=True)
+        sys.exit(write_error.exit_code)
+
+    click.echo(f"OK: wrote {output_path}")
     sys.exit(0)
 
 
