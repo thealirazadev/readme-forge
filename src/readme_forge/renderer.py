@@ -1,6 +1,9 @@
-"""Rich-based terminal output: summary recap and README preview."""
+"""Rich-based terminal output: summary recap, progress, and README preview."""
 
 from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -13,6 +16,19 @@ from readme_forge.summary import RepoSummary
 def make_console(color: bool) -> Console:
     """Build a rich Console; color/highlighting are disabled when color is False."""
     return Console(no_color=not color, highlight=False)
+
+
+@contextmanager
+def progress_step(console: Console, quiet: bool, message: str) -> Iterator[None]:
+    """Show a spinner with `message` for the duration of the wrapped step.
+
+    Under --quiet, no spinner is shown; the step still runs.
+    """
+    if quiet:
+        yield
+        return
+    with console.status(message):
+        yield
 
 
 def render_summary_recap(console: Console, summary: RepoSummary) -> None:
