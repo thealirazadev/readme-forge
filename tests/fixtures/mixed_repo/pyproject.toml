@@ -1,0 +1,4 @@
+[project]
+name = "mixedrepo"
+description = "A mixed-language sample repo"
+version = "0.1.0"
