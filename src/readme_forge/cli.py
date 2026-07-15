@@ -81,6 +81,13 @@ def _get_api_key() -> str:
     help="Replace an existing README at the output path without prompting.",
 )
 @click.option(
+    "--output",
+    "output",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Where to write the generated README. Defaults to PATH/README.md.",
+)
+@click.option(
     "--summary-json",
     is_flag=True,
     hidden=True,
@@ -93,6 +100,7 @@ def main(
     sections: str | None,
     dry_run: bool,
     overwrite: bool,
+    output: Path | None,
     summary_json: bool,
 ) -> None:
     """Scan PATH and draft a README.md using the Anthropic Claude API."""
@@ -129,7 +137,7 @@ def main(
         click.echo(format_error(exc.message), err=True)
         sys.exit(exc.exit_code)
 
-    output_path = Path(path) / "README.md"
+    output_path = output if output is not None else Path(path) / "README.md"
     exists = output_path.exists()
     render_preview(console, markdown_text, str(output_path), exists)
 
