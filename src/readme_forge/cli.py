@@ -22,7 +22,6 @@ from readme_forge.errors import (
     ReadmeForgeError,
     UsageError,
     WriteError,
-    format_error,
     map_anthropic_error,
 )
 from readme_forge.logging_setup import configure_logging
@@ -31,6 +30,7 @@ from readme_forge.renderer import (
     confirm_overwrite,
     decide_write_action,
     make_console,
+    print_error,
     progress_step,
     render_preview,
     render_summary_recap,
@@ -39,8 +39,8 @@ from readme_forge.scanner import scan_repo
 from readme_forge.summary import RepoSummary, build_summary
 
 
-def _exit_with_error(message: str, exit_code: int, verbose: bool) -> None:
-    click.echo(format_error(message), err=True)
+def _exit_with_error(err_console, message: str, exit_code: int, verbose: bool) -> None:
+    print_error(err_console, message)
     if verbose:
         traceback.print_exc()
     sys.exit(exit_code)
@@ -126,18 +126,54 @@ def main(
     summary_json: bool,
 ) -> None:
     """Scan PATH and draft a README.md using the Anthropic Claude API."""
+    color = resolve_color(sys.stdout.isatty())
+    console = make_console(color=color)
+    err_console = make_console(color=color, stderr=True)
+
     if quiet and verbose:
         _exit_with_error(
-            "--quiet and --verbose are mutually exclusive", UsageError.exit_code, False
+            err_console, "--quiet and --verbose are mutually exclusive", UsageError.exit_code, False
         )
 
     configure_logging(quiet, verbose)
-    console = make_console(color=resolve_color(sys.stdout.isatty()))
 
+    try:
+        _run(
+            console,
+            err_console,
+            path,
+            model,
+            sections,
+            dry_run,
+            overwrite,
+            output,
+            quiet,
+            verbose,
+            summary_json,
+        )
+    except SystemExit:
+        raise
+    except Exception as exc:  # last-resort guard: never a bare traceback by default
+        _exit_with_error(err_console, f"unexpected error: {exc}", 1, verbose)
+
+
+def _run(
+    console,
+    err_console,
+    path: str,
+    model: str | None,
+    sections: str | None,
+    dry_run: bool,
+    overwrite: bool,
+    output: Path | None,
+    quiet: bool,
+    verbose: bool,
+    summary_json: bool,
+) -> None:
     try:
         summary = _build_summary(console, path, quiet)
     except ReadmeForgeError as exc:
-        _exit_with_error(exc.message, exc.exit_code, verbose)
+        _exit_with_error(err_console, exc.message, exc.exit_code, verbose)
 
     if summary_json:
         click.echo(summary.to_json())
@@ -165,9 +201,9 @@ def main(
             markdown_text = draft_readme(summary, resolved_sections, resolved_model, api_key)
     except anthropic.APIError as exc:
         friendly = map_anthropic_error(exc)
-        _exit_with_error(friendly.message, friendly.exit_code, verbose)
+        _exit_with_error(err_console, friendly.message, friendly.exit_code, verbose)
     except ReadmeForgeError as exc:
-        _exit_with_error(exc.message, exc.exit_code, verbose)
+        _exit_with_error(err_console, exc.message, exc.exit_code, verbose)
 
     exists = output_path.exists()
     render_preview(console, markdown_text, str(output_path), exists)
@@ -187,10 +223,10 @@ def main(
                 sys.exit(0)
         output_path.write_text(markdown_text, encoding="utf-8")
     except ReadmeForgeError as exc:
-        _exit_with_error(exc.message, exc.exit_code, verbose)
+        _exit_with_error(err_console, exc.message, exc.exit_code, verbose)
     except OSError as exc:
         write_error = WriteError(f"could not write {output_path}: {exc}")
-        _exit_with_error(write_error.message, write_error.exit_code, verbose)
+        _exit_with_error(err_console, write_error.message, write_error.exit_code, verbose)
 
     click.echo(f"OK: wrote {output_path}")
     sys.exit(0)

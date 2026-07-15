@@ -15,9 +15,14 @@ from rich.table import Table
 from readme_forge.summary import RepoSummary
 
 
-def make_console(color: bool) -> Console:
+def make_console(color: bool, stderr: bool = False) -> Console:
     """Build a rich Console; color/highlighting are disabled when color is False."""
-    return Console(no_color=not color, highlight=False)
+    return Console(no_color=not color, highlight=False, stderr=stderr)
+
+
+def print_error(console: Console, message: str) -> None:
+    """Print a one-line friendly error: red 'Error:' prefix when color is on, plain otherwise."""
+    console.print(f"Error: {message}", style="bold red")
 
 
 @contextmanager
