@@ -68,7 +68,20 @@ def _get_api_key() -> str:
     return api_key
 
 
-@click.command()
+EXAMPLES = """\
+Examples:
+
+\b
+  readme-forge .                                     draft and write README.md
+  readme-forge . --dry-run                            preview only, write nothing
+  readme-forge . --overwrite                          replace an existing README
+  readme-forge . --output docs/README.md              write to a custom path
+  readme-forge . --sections "overview,install,usage"  limit the drafted sections
+  readme-forge . --model claude-sonnet-4-5-20250929    pin a specific Claude model
+"""
+
+
+@click.command(epilog=EXAMPLES)
 @click.argument("path", required=False, default=".")
 @click.option(
     "--model",
