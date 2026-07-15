@@ -84,7 +84,7 @@ def _load_gitignore_spec(root: Path) -> pathspec.PathSpec | None:
         lines = gitignore.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return None
-    return pathspec.PathSpec.from_lines("gitwildmatch", lines)
+    return pathspec.PathSpec.from_lines("gitignore", lines)
 
 
 def scan_repo(root: Path) -> ScanResult:
