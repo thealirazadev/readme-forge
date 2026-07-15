@@ -72,3 +72,92 @@ def test_invalid_key_exits_3_with_friendly_message(
         result = runner.invoke(main, [str(fixtures_dir / "python_repo"), "--dry-run"])
     assert result.exit_code == 3
     assert "invalid" in result.output.lower()
+
+
+def test_new_file_writes_without_prompt(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# New\n"):
+        result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 0
+    assert "OK: wrote" in result.output
+    assert (tmp_path / "README.md").read_text() == "# New\n"
+
+
+def test_existing_readme_without_overwrite_non_interactive_exits_4(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    (tmp_path / "README.md").write_text("old content\n")
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# New\n"):
+        result = runner.invoke(main, [str(tmp_path)])
+    assert result.exit_code == 4
+    assert "--overwrite" in result.output
+    assert (tmp_path / "README.md").read_text() == "old content\n"
+
+
+def test_existing_readme_with_overwrite_writes_without_prompt(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    (tmp_path / "README.md").write_text("old content\n")
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# New\n"):
+        result = runner.invoke(main, [str(tmp_path), "--overwrite"])
+    assert result.exit_code == 0
+    assert (tmp_path / "README.md").read_text() == "# New\n"
+
+
+def test_output_flag_writes_to_custom_path(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    custom_output = tmp_path / "docs" / "README.md"
+    custom_output.parent.mkdir()
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# New\n"):
+        result = runner.invoke(main, [str(tmp_path), "--output", str(custom_output)])
+    assert result.exit_code == 0
+    assert custom_output.read_text() == "# New\n"
+    assert not (tmp_path / "README.md").exists()
+
+
+def test_quiet_and_verbose_together_is_usage_error(runner: CliRunner, fixtures_dir: Path) -> None:
+    result = runner.invoke(main, [str(fixtures_dir / "python_repo"), "--quiet", "--verbose"])
+    assert result.exit_code == 2
+    assert "mutually exclusive" in result.output
+
+
+def test_quiet_suppresses_recap(
+    runner: CliRunner, fixtures_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# S\n"):
+        result = runner.invoke(main, [str(fixtures_dir / "python_repo"), "--dry-run", "--quiet"])
+    assert result.exit_code == 0
+    assert "Primary language" not in result.output
+
+
+def test_verbose_shows_resolved_config(
+    runner: CliRunner, fixtures_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# S\n"):
+        result = runner.invoke(main, [str(fixtures_dir / "python_repo"), "--dry-run", "--verbose"])
+    assert result.exit_code == 0
+    assert "Resolved model" in result.output
+    assert "Resolved sections" in result.output
+
+
+def test_unexpected_error_exits_1_without_traceback_by_default(
+    runner: CliRunner, fixtures_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    with mock.patch("readme_forge.cli.draft_readme", side_effect=RuntimeError("boom")):
+        result = runner.invoke(main, [str(fixtures_dir / "python_repo"), "--dry-run"])
+    assert result.exit_code == 1
+    assert "unexpected error" in result.output.lower()
+    assert "Traceback" not in result.output
