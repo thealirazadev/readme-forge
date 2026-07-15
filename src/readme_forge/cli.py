@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+import traceback
 from pathlib import Path
 
 import anthropic
@@ -19,10 +20,12 @@ from readme_forge.errors import (
     NotARepoError,
     OverwriteRefused,
     ReadmeForgeError,
+    UsageError,
     WriteError,
     format_error,
     map_anthropic_error,
 )
+from readme_forge.logging_setup import configure_logging
 from readme_forge.renderer import (
     WriteAction,
     confirm_overwrite,
@@ -36,16 +39,23 @@ from readme_forge.scanner import scan_repo
 from readme_forge.summary import RepoSummary, build_summary
 
 
-def _build_summary(console, path: str) -> RepoSummary:
+def _exit_with_error(message: str, exit_code: int, verbose: bool) -> None:
+    click.echo(format_error(message), err=True)
+    if verbose:
+        traceback.print_exc()
+    sys.exit(exit_code)
+
+
+def _build_summary(console, path: str, quiet: bool) -> RepoSummary:
     target = Path(path)
     if not target.is_dir():
         raise NotARepoError(f"path is not a directory: {path}")
 
-    with progress_step(console, False, "Scanning files..."):
+    with progress_step(console, quiet, "Scanning files..."):
         scan_result = scan_repo(target)
-    with progress_step(console, False, "Detecting languages..."):
+    with progress_step(console, quiet, "Detecting languages..."):
         languages = detect_languages(scan_result.files)
-    with progress_step(console, False, "Parsing manifests..."):
+    with progress_step(console, quiet, "Parsing manifests..."):
         manifests = parse_manifests(scan_result.manifest_contents, scan_result.notes)
     return build_summary(target, scan_result.files, languages, manifests, scan_result.notes)
 
@@ -88,6 +98,16 @@ def _get_api_key() -> str:
     help="Where to write the generated README. Defaults to PATH/README.md.",
 )
 @click.option(
+    "--quiet",
+    is_flag=True,
+    help="Minimal output: no progress or recap, only the preview and errors.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    help="Detailed output: resolved config, scan notes, and full tracebacks on error.",
+)
+@click.option(
     "--summary-json",
     is_flag=True,
     hidden=True,
@@ -101,16 +121,23 @@ def main(
     dry_run: bool,
     overwrite: bool,
     output: Path | None,
+    quiet: bool,
+    verbose: bool,
     summary_json: bool,
 ) -> None:
     """Scan PATH and draft a README.md using the Anthropic Claude API."""
+    if quiet and verbose:
+        _exit_with_error(
+            "--quiet and --verbose are mutually exclusive", UsageError.exit_code, False
+        )
+
+    configure_logging(quiet, verbose)
     console = make_console(color=resolve_color(sys.stdout.isatty()))
 
     try:
-        summary = _build_summary(console, path)
+        summary = _build_summary(console, path, quiet)
     except ReadmeForgeError as exc:
-        click.echo(format_error(exc.message), err=True)
-        sys.exit(exc.exit_code)
+        _exit_with_error(exc.message, exc.exit_code, verbose)
 
     if summary_json:
         click.echo(summary.to_json())
@@ -120,24 +147,28 @@ def main(
         click.echo("Repository appears to be empty; nothing to summarize.")
         sys.exit(0)
 
-    render_summary_recap(console, summary)
+    if not quiet:
+        render_summary_recap(console, summary)
 
     resolved_model = resolve_model(model)
     resolved_sections = resolve_sections(sections)
+    output_path = output if output is not None else Path(path) / "README.md"
+
+    if verbose:
+        console.print(f"Resolved model: {resolved_model}")
+        console.print(f"Resolved sections: {', '.join(resolved_sections)}")
+        console.print(f"Output path: {output_path}")
 
     try:
         api_key = _get_api_key()
-        with progress_step(console, False, "Drafting README with Claude..."):
+        with progress_step(console, quiet, "Drafting README with Claude..."):
             markdown_text = draft_readme(summary, resolved_sections, resolved_model, api_key)
     except anthropic.APIError as exc:
         friendly = map_anthropic_error(exc)
-        click.echo(format_error(friendly.message), err=True)
-        sys.exit(friendly.exit_code)
+        _exit_with_error(friendly.message, friendly.exit_code, verbose)
     except ReadmeForgeError as exc:
-        click.echo(format_error(exc.message), err=True)
-        sys.exit(exc.exit_code)
+        _exit_with_error(exc.message, exc.exit_code, verbose)
 
-    output_path = output if output is not None else Path(path) / "README.md"
     exists = output_path.exists()
     render_preview(console, markdown_text, str(output_path), exists)
 
@@ -156,12 +187,10 @@ def main(
                 sys.exit(0)
         output_path.write_text(markdown_text, encoding="utf-8")
     except ReadmeForgeError as exc:
-        click.echo(format_error(exc.message), err=True)
-        sys.exit(exc.exit_code)
+        _exit_with_error(exc.message, exc.exit_code, verbose)
     except OSError as exc:
         write_error = WriteError(f"could not write {output_path}: {exc}")
-        click.echo(format_error(write_error.message), err=True)
-        sys.exit(write_error.exit_code)
+        _exit_with_error(write_error.message, write_error.exit_code, verbose)
 
     click.echo(f"OK: wrote {output_path}")
     sys.exit(0)
