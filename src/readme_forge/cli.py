@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 from readme_forge import __version__
 from readme_forge.api import draft_readme
-from readme_forge.config import resolve_model, resolve_sections
+from readme_forge.config import resolve_color, resolve_model, resolve_sections
 from readme_forge.detect import detect_languages, parse_manifests
 from readme_forge.errors import (
     ApiKeyMissingError,
@@ -104,7 +104,7 @@ def main(
     summary_json: bool,
 ) -> None:
     """Scan PATH and draft a README.md using the Anthropic Claude API."""
-    console = make_console(color=True)
+    console = make_console(color=resolve_color(sys.stdout.isatty()))
 
     try:
         summary = _build_summary(console, path)
