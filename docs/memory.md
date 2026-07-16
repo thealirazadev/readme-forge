@@ -10,9 +10,11 @@ Working log for the project. Keep entries short and dated. Newest first within e
 - 2026-07-16: Phase 3 (write gate, overwrite safety, UX polish) completed: confirm-before-write gate (`decide_write_action`/`confirm_overwrite` in renderer.py, `WriteError`/`OverwriteRefused` in errors.py), `--output`, `NO_COLOR`/non-TTY color resolution, `--quiet`/`--verbose` (via `logging_setup.py`, scoped to the `readme_forge` logger only), finalized exit codes with a stderr rich console for friendly red-on-color errors, a last-resort exception guard (exit 1, no bare traceback unless `--verbose`), and `--help` usage examples. Full write-gate/overwrite/non-interactive-decline test coverage added.
 - 2026-07-16: Added `requirements.lock` (pinned direct + transitive dependency set) per rules.md; was missing since the initial scaffold commit.
 
+- 2026-07-17: Ran the launch checklist (docs/launch-checklist.md) end to end. Local `.venv` had a stale symlink to a macOS homebrew Python path from a prior machine; recreated it with `python3 -m venv .venv` on this host. `pip install -e ".[dev]"` succeeds (slow network, several minutes, no functional issue). `ruff check .`, `black --check .`, and `pytest` (53 tests) all pass clean. `python -m build` produces both wheel and sdist; `twine check dist/*` passes. Manually exercised the CLI: not-a-directory (exit 2), empty repo (exit 0), missing API key (exit 3), a real network call with a fake key correctly mapped 401 to "invalid ANTHROPIC_API_KEY" (exit 3), dry-run (writes nothing), new-file write, existing-README-without-overwrite under non-interactive stdin (exit 4, matches CliRunner behavior since piped stdin is never a tty), `--overwrite`, `--output`, `NO_COLOR`/non-TTY (no ANSI codes), `--quiet`, `--verbose`, and `--quiet`+`--verbose` conflict (exit 2). Checked `.env.example` (dummy key only), LICENSE (MIT, present), pyproject.toml metadata (complete), commit history (all Conventional Commits), and no emoji/authorship attribution anywhere in src/tests/docs. Ticked every launch-checklist box except the "PyPI publish" upload/tag items, which require real PyPI credentials not available here.
+
 ## In progress
 
-- (nothing; all three phases from docs/phases.md are complete)
+- Nothing outstanding from the implementation phases. Remaining launch-checklist work is PyPI credential-gated: version bump/tag, TestPyPI upload, PyPI upload. Needs a human with publish access.
 
 ## Decisions log
 
