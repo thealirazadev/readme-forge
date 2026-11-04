@@ -95,6 +95,7 @@ def scan_repo(root: Path) -> ScanResult:
     """
     result = ScanResult(root=root)
     spec = _load_gitignore_spec(root)
+    resolved_root = root.resolve()
 
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(d for d in dirnames if d not in BUILTIN_IGNORE_DIRS)
@@ -117,6 +118,12 @@ def scan_repo(root: Path) -> ScanResult:
                 continue
 
             full_path = root / rel_path
+            if os.path.islink(full_path) and not Path(os.path.realpath(full_path)).is_relative_to(
+                resolved_root
+            ):
+                result.notes.append(f"skipped symlink outside repo: {rel_str}")
+                continue
+
             try:
                 size = full_path.stat().st_size
             except OSError:
