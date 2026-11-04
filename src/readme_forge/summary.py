@@ -84,8 +84,12 @@ def _detect_has_tests(files: list[ScannedFile]) -> bool:
 def _detect_has_ci(root: Path, files: list[ScannedFile]) -> bool:
     if (root / ".github" / "workflows").is_dir():
         return True
-    present = {f.relative_path for f in files}
-    return any(marker in present for marker in CI_MARKER_PATHS)
+    for f in files:
+        path = f.relative_path.replace("\\", "/")
+        for marker in CI_MARKER_PATHS:
+            if path == marker or path.startswith(marker + "/"):
+                return True
+    return False
 
 
 def _detect_license_hint(root: Path) -> str | None:

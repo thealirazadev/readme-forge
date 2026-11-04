@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from readme_forge.detect import detect_languages, parse_manifests
-from readme_forge.scanner import scan_repo
-from readme_forge.summary import MAX_SUMMARY_BYTES, build_summary
+from readme_forge.scanner import ScannedFile, scan_repo
+from readme_forge.summary import MAX_SUMMARY_BYTES, _detect_has_ci, build_summary
 
 
 def _summarize(root: Path):
@@ -52,3 +52,14 @@ def test_summary_size_cap_enforced(tmp_path: Path) -> None:
     huge_notes = [f"note number {i} with some extra padding text" for i in range(2000)]
     summary = build_summary(tmp_path, result.files, [], [], huge_notes)
     assert len(summary.to_json().encode("utf-8")) <= MAX_SUMMARY_BYTES
+
+
+def test_has_ci_detected_from_files_under_ci_directories(tmp_path: Path) -> None:
+    circleci = [ScannedFile(relative_path=".circleci/config.yml", extension=".yml", size=10)]
+    workflows = [ScannedFile(relative_path=".github/workflows/ci.yml", extension=".yml", size=10)]
+    gitlab = [ScannedFile(relative_path=".gitlab-ci.yml", extension=".yml", size=10)]
+    unrelated = [ScannedFile(relative_path="src/.circleci_notes.txt", extension=".txt", size=10)]
+    assert _detect_has_ci(tmp_path, circleci) is True
+    assert _detect_has_ci(tmp_path, workflows) is True
+    assert _detect_has_ci(tmp_path, gitlab) is True
+    assert _detect_has_ci(tmp_path, unrelated) is False
