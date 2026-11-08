@@ -18,12 +18,12 @@ The core value that everything depends on: walk a repo and produce a bounded, se
 - Ruff, Black, and pytest pass.
 
 ### Manual test checklist
-- [ ] Run against a Python fixture repo; primary language is Python; `pyproject.toml` appears.
-- [ ] Run against a Node fixture repo; primary language is JavaScript/TypeScript; `package.json` scripts appear.
-- [ ] Add a `.gitignore` entry and confirm the matched path is absent from the summary.
-- [ ] Drop a fake `.env` and a large binary into a fixture; confirm they are skipped and noted.
-- [ ] Run against a file (not a directory): friendly error, exit 2.
-- [ ] Run against an empty directory: clearly-empty summary or friendly message, no crash.
+- [x] Run against a Python fixture repo; primary language is Python; `pyproject.toml` appears.
+- [x] Run against a Node fixture repo; primary language is JavaScript/TypeScript; `package.json` scripts appear.
+- [x] Add a `.gitignore` entry and confirm the matched path is absent from the summary.
+- [x] Drop a fake `.env` and a large binary into a fixture; confirm they are skipped and noted.
+- [x] Run against a file (not a directory): friendly error, exit 2.
+- [x] Run against an empty directory: clearly-empty summary or friendly message, no crash.
 
 ### Commits
 1. `chore: scaffold package, pyproject, entry point, and tooling config`
@@ -52,11 +52,11 @@ Turn the summary into a drafted README and let the user see it. No write to disk
 - Ruff, Black, and pytest pass.
 
 ### Manual test checklist
-- [ ] With a valid key, `readme-forge . --dry-run` previews a README containing the default sections.
-- [ ] `--sections "overview,usage,license"` limits the drafted sections.
-- [ ] `--model some-id` is used (verify via `--verbose` resolved-config output).
-- [ ] Unset the key: friendly "set ANTHROPIC_API_KEY" message, exit 3, no traceback.
-- [ ] Simulate network down (no connectivity): friendly network error, exit 3.
+- [x] With a valid key, `readme-forge . --dry-run` previews a README containing the default sections.
+- [x] `--sections "overview,usage,license"` limits the drafted sections.
+- [x] `--model some-id` is used (verify via `--verbose` resolved-config output).
+- [x] Unset the key: friendly "set ANTHROPIC_API_KEY" message, exit 3, no traceback.
+- [x] Simulate network down (no connectivity): friendly network error, exit 3.
 - [ ] Simulate 401 (bad key) and 429 (rate limit) via the mock in tests: distinct messages.
 
 ### Commits
@@ -86,13 +86,13 @@ Make it write files safely, and finish the CLI UX.
 - Ruff, Black, and pytest pass.
 
 ### Manual test checklist
-- [ ] New file: `readme-forge .` writes `README.md`, exit 0.
+- [x] New file: `readme-forge .` writes `README.md`, exit 0.
 - [ ] Existing file, no flag: prompts, default No; declining writes nothing, exit 0.
-- [ ] Existing file, `--overwrite`: writes without prompt.
-- [ ] `--output docs/README.md` writes to that path.
-- [ ] `NO_COLOR=1 readme-forge .`: no color, still readable.
+- [x] Existing file, `--overwrite`: writes without prompt.
+- [x] `--output docs/README.md` writes to that path.
+- [x] `NO_COLOR=1 readme-forge .`: no color, still readable.
 - [ ] `--quiet` suppresses progress; `--verbose` shows resolved config and skip notes.
-- [ ] Existing file, no `--overwrite`, piped stdin: exit 4 with guidance.
+- [x] Existing file, no `--overwrite`, piped stdin: exit 4 with guidance.
 
 ### Commits
 1. `feat: add confirm-before-write gate with overwrite safety`
@@ -110,14 +110,14 @@ Make it write files safely, and finish the CLI UX.
 - [ ] Build the package (`pip install -e ".[dev]"`) succeeds.
 - [ ] `ruff check .` and `black --check .` pass.
 - [ ] `pytest` passes with no network access.
-- [ ] Run the CLI against a real fixture repo and inspect output.
-- [ ] Unhappy path: path is not a repo/directory -> friendly error, exit 2.
-- [ ] Unhappy path: empty repo -> clearly-empty summary or friendly message, no crash.
-- [ ] Unhappy path: existing README without `--overwrite` -> prompts / refuses, never silently overwrites.
-- [ ] Unhappy path: missing `ANTHROPIC_API_KEY` -> friendly message, exit 3, no traceback.
-- [ ] Unhappy path: network down -> friendly network error, exit 3.
+- [x] Run the CLI against a real fixture repo and inspect output.
+- [x] Unhappy path: path is not a repo/directory -> friendly error, exit 2.
+- [x] Unhappy path: empty repo -> clearly-empty summary or friendly message, no crash.
+- [x] Unhappy path: existing README without `--overwrite` -> prompts / refuses, never silently overwrites.
+- [x] Unhappy path: missing `ANTHROPIC_API_KEY` -> friendly message, exit 3, no traceback.
+- [x] Unhappy path: network down -> friendly network error, exit 3.
 - [ ] Unhappy path: huge repo -> summary stays under the size cap; run completes in reasonable time.
-- [ ] Dry-run writes nothing; a normal run writes exactly the target file.
+- [x] Dry-run writes nothing; a normal run writes exactly the target file.
 - [ ] `--quiet` and `--verbose` each behave as specified; `NO_COLOR` disables color.
 
 ## Backlog

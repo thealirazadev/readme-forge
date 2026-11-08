@@ -26,3 +26,14 @@ Working log for the project. Keep entries short and dated. Newest first within e
 - 2026-07-16: `--quiet`/`--verbose` configure only the `readme_forge` logger (not the root logger via `logging.basicConfig`) — an earlier draft using `basicConfig` leaked third-party library DEBUG output (markdown-it internals) into `--verbose` runs.
 - 2026-07-16: Friendly errors are printed through a dedicated stderr `rich.Console` (`make_console(color, stderr=True)`) so the red "Error:" prefix is automatic under color and plain otherwise, matching design.md without hand-rolled ANSI codes.
 - 2026-07-16: A top-level `except Exception` guard in `cli.py` wraps the whole run so a genuine bug degrades to exit code 1 with a friendly message instead of a raw traceback; `--verbose` still prints the traceback.
+
+- 2026-11-09: Manual checklists run against real models (Sonnet/Haiku 5.5 via a local
+  Anthropic-Messages shim that calls the Claude Code CLI; outside the repo) on real repos
+  (quotaguard, taskboard) and scratch fixtures. Drafts were grounded in the real manifests,
+  scripts, and entry points. Two fixes: the summary's `top_level` listed the raw directory, so
+  gitignored paths (node_modules, dist, build), secret files (.env), and skipped binaries reached
+  the prompt even though the scanner had excluded them; it now lists only top-level names of
+  scanned files. `--output docs/README.md` into a missing folder failed with exit 1; parent
+  folders are now created. Default model updated to `claude-sonnet-5-5` (flagged
+  architecture.md edit: the id only). Piped "n" at the overwrite prompt exits 4 by design
+  (non-interactive stdin), the interactive decline path is covered by tests.
