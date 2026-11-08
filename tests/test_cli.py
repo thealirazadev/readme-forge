@@ -161,3 +161,15 @@ def test_unexpected_error_exits_1_without_traceback_by_default(
     assert result.exit_code == 1
     assert "unexpected error" in result.output.lower()
     assert "Traceback" not in result.output
+
+
+def test_output_into_a_missing_directory_creates_it(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    target = tmp_path / "docs" / "guide" / "README.md"
+    with mock.patch("readme_forge.cli.draft_readme", return_value="# New\n"):
+        result = runner.invoke(main, [str(tmp_path), "--output", str(target)])
+    assert result.exit_code == 0, result.output
+    assert target.read_text() == "# New\n"
