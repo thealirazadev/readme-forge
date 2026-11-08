@@ -77,7 +77,7 @@ Examples:
   readme-forge . --overwrite                          replace an existing README
   readme-forge . --output docs/README.md              write to a custom path
   readme-forge . --sections "overview,install,usage"  limit the drafted sections
-  readme-forge . --model claude-sonnet-4-5-20250929    pin a specific Claude model
+  readme-forge . --model claude-sonnet-5-5    pin a specific Claude model
 """
 
 
