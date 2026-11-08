@@ -52,3 +52,18 @@ def test_summary_size_cap_enforced(tmp_path: Path) -> None:
     huge_notes = [f"note number {i} with some extra padding text" for i in range(2000)]
     summary = build_summary(tmp_path, result.files, [], [], huge_notes)
     assert len(summary.to_json().encode("utf-8")) <= MAX_SUMMARY_BYTES
+
+
+def test_top_level_never_names_ignored_secret_or_skipped_paths(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    (tmp_path / ".gitignore").write_text("build/\nnode_modules/\n")
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "out.py").write_text("x = 1\n")
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "lib.js").write_text("module.exports = 1\n")
+    (tmp_path / ".env").write_text("SECRET=abc123\n")
+    (tmp_path / "model.bin").write_bytes(b"\0" * 3_000_000)
+
+    summary = _summarize(tmp_path)
+
+    assert summary.top_level == [".gitignore", "app.py"]
