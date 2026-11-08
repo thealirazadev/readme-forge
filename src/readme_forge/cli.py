@@ -234,6 +234,7 @@ def _run(
             if not confirm_overwrite(str(output_path), interactive=True):
                 click.echo("Not overwriting; nothing written.")
                 sys.exit(0)
+        output_path.parent.mkdir(parents=True, exist_ok=True)  # e.g. --output docs/README.md
         output_path.write_text(markdown_text, encoding="utf-8")
     except ReadmeForgeError as exc:
         _exit_with_error(err_console, exc.message, exc.exit_code, verbose)
