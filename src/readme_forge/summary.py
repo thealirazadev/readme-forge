@@ -63,11 +63,13 @@ def _detect_entry_points(files: list[ScannedFile]) -> list[str]:
     return sorted(found)[:MAX_ENTRY_POINTS]
 
 
-def _detect_top_level(root: Path) -> list[str]:
-    try:
-        entries = sorted(p.name for p in root.iterdir())
-    except OSError:
-        return []
+def _detect_top_level(files: list[ScannedFile]) -> list[str]:
+    """Top-level names taken from scanned files only.
+
+    Listing the directory directly would leak gitignored paths (node_modules, build output),
+    secret files, and skipped binaries into the prompt; the scanner already filtered those.
+    """
+    entries = sorted({Path(f.relative_path).parts[0] for f in files if f.relative_path})
     return entries[:MAX_TOP_LEVEL]
 
 
@@ -119,7 +121,7 @@ def build_summary(
         manifests=manifests,
         scripts=_merge_scripts(manifests),
         entry_points=_detect_entry_points(files),
-        top_level=_detect_top_level(root),
+        top_level=_detect_top_level(files),
         has_tests=_detect_has_tests(files),
         has_ci=_detect_has_ci(root, files),
         license_hint=_detect_license_hint(root),
