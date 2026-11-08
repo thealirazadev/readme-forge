@@ -65,5 +65,9 @@ line-length = 100
 target-version = ["py310", "py311", "py312"]
 
 [tool.pytest.ini_options]
+addopts = "--cov=readme_forge --cov-report=term-missing:skip-covered"
 testpaths = ["tests"]
 norecursedirs = ["fixtures", ".venv", "build", "dist"]
+
+[tool.coverage.report]
+fail_under = 90
