@@ -6,7 +6,7 @@ import anthropic
 
 from readme_forge.summary import RepoSummary
 
-DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_MODEL = "claude-sonnet-5-5"
 MAX_TOKENS = 4096
 
 PROMPT_TEMPLATE = """You are drafting a README.md for a code repository based on the \

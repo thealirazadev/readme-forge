@@ -69,7 +69,7 @@ Common options:
 readme-forge /path/to/repo --output README.md
 readme-forge . --dry-run                 # print the draft, write nothing
 readme-forge . --overwrite               # replace an existing README (still previews)
-readme-forge . --model claude-sonnet-4-5-20250929
+readme-forge . --model claude-sonnet-5-5
 readme-forge . --sections "overview,install,usage,license"
 readme-forge . --quiet                   # minimal output
 readme-forge . --verbose                 # detailed logs, including scan decisions

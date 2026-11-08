@@ -138,7 +138,7 @@ Default sections: `overview`, `features`, `tech stack`, `prerequisites`, `instal
 
 External services:
 
-- **Anthropic Claude API** — the only external network dependency. Called through the `anthropic` Python SDK. A default model id is used unless overridden; a reasonable current default is `claude-sonnet-4-5-20250929` (override with `--model` or `README_FORGE_MODEL`).
+- **Anthropic Claude API** — the only external network dependency. Called through the `anthropic` Python SDK. A default model id is used unless overridden; a reasonable current default is `claude-sonnet-5-5` (override with `--model` or `README_FORGE_MODEL`).
 
 Environment variables:
 
