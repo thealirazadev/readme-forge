@@ -2,7 +2,8 @@
 
 ## Supported versions
 
-Only the latest release on `main` receives security fixes.
+Only the latest release (0.1.0, the version in `pyproject.toml`) on `main` receives security
+fixes.
 
 ## Reporting a vulnerability
 
@@ -10,9 +11,15 @@ Please do not open a public issue. Use GitHub's private vulnerability reporting
 (Security tab, "Report a vulnerability") or email thealirazadev@gmail.com with the
 steps to reproduce. You should get a reply within 72 hours.
 
-## How readme-forge handles sensitive data
+## How readme-forge protects your code and key
 
-- The scanner skips `.env`, `.env.*`, `secrets.*` and other secret-named files, and it honors `.gitignore` (`src/readme_forge/scanner.py`).
-- Files above a size limit are never read (`src/readme_forge/scanner.py`).
-- An existing README is never overwritten without `--overwrite` or an interactive confirmation, and the confirmation defaults to no (`src/readme_forge/renderer.py`).
-- The API key is read from `ANTHROPIC_API_KEY` in the environment or a local `.env` (`src/readme_forge/errors.py`, README).
+- The Anthropic API key is read from `ANTHROPIC_API_KEY` (or a local `.env`) and is not written
+  to the output.
+- Files matching secret patterns (`.env`, `*.pem`, `id_rsa`, `secrets.*`, and similar) are
+  skipped during the scan, and the skip is noted in the verbose log.
+- Ignored paths from `.gitignore` and large binaries are left out of the summary sent to the
+  model.
+- A structured summary of the repository is sent to the Claude API to draft the README, so do
+  not run it on private code you are not allowed to share with that service.
+- The draft is shown as a preview. Nothing is written to disk without confirmation, and an
+  existing README is replaced only with `--overwrite`.
