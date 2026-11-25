@@ -4,7 +4,7 @@ from pathlib import Path
 
 from readme_forge.detect import detect_languages, parse_manifests
 from readme_forge.scanner import scan_repo
-from readme_forge.summary import MAX_SUMMARY_BYTES, build_summary
+from readme_forge.summary import MAX_STRING_LEN, MAX_SUMMARY_BYTES, build_summary
 
 
 def _summarize(root: Path):
@@ -67,3 +67,46 @@ def test_top_level_never_names_ignored_secret_or_skipped_paths(tmp_path: Path) -
     summary = _summarize(tmp_path)
 
     assert summary.top_level == [".gitignore", "app.py"]
+
+
+def test_has_ci_detects_directory_markers(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    (tmp_path / ".circleci").mkdir()
+    (tmp_path / ".circleci" / "config.yml").write_text("version: 2.1\n")
+    assert _summarize(tmp_path).has_ci is True
+
+
+def test_has_ci_detects_file_markers(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    (tmp_path / ".gitlab-ci.yml").write_text("test:\n  script: pytest\n")
+    assert _summarize(tmp_path).has_ci is True
+
+
+def test_has_ci_false_without_markers(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    assert _summarize(tmp_path).has_ci is False
+
+
+def test_rust_repo_summary(fixtures_dir: Path) -> None:
+    summary = _summarize(fixtures_dir / "rust_repo")
+    assert summary.languages[0].name == "Rust"
+    assert [m.kind for m in summary.manifests] == ["Cargo.toml"]
+    assert summary.manifests[0].name == "samplers"
+
+
+def test_php_repo_summary_merges_composer_scripts(fixtures_dir: Path) -> None:
+    summary = _summarize(fixtures_dir / "php_repo")
+    assert summary.languages[0].name == "PHP"
+    assert summary.scripts == {"test": "phpunit", "check": "@lint && @test"}
+
+
+def test_long_manifest_description_is_truncated(tmp_path: Path) -> None:
+    long_text = "x" * (MAX_STRING_LEN * 3)
+    (tmp_path / "package.json").write_text(
+        '{"name": "pkg", "description": "' + long_text + '"}', encoding="utf-8"
+    )
+    summary = _summarize(tmp_path)
+    description = summary.manifests[0].description
+    assert description is not None
+    assert len(description) == MAX_STRING_LEN
+    assert description.endswith("…")

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import anthropic
 import click
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from readme_forge import __version__
 from readme_forge.api import draft_readme
@@ -61,7 +61,9 @@ def _build_summary(console, path: str, quiet: bool) -> RepoSummary:
 
 
 def _get_api_key() -> str:
-    load_dotenv()
+    # Search from the working directory. A bare load_dotenv() searches upward from this
+    # module's own file, which for an installed package is site-packages, not the user's .env.
+    load_dotenv(find_dotenv(usecwd=True))
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise ApiKeyMissingError("set ANTHROPIC_API_KEY or add it to .env to draft a README")

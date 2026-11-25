@@ -86,8 +86,13 @@ def _detect_has_tests(files: list[ScannedFile]) -> bool:
 def _detect_has_ci(root: Path, files: list[ScannedFile]) -> bool:
     if (root / ".github" / "workflows").is_dir():
         return True
-    present = {f.relative_path for f in files}
-    return any(marker in present for marker in CI_MARKER_PATHS)
+    # Markers are either files (.gitlab-ci.yml) or directories (.circleci), so match a scanned
+    # path that is the marker itself or lives under it.
+    return any(
+        f.relative_path == marker or f.relative_path.startswith(f"{marker}/")
+        for f in files
+        for marker in CI_MARKER_PATHS
+    )
 
 
 def _detect_license_hint(root: Path) -> str | None:
@@ -114,6 +119,13 @@ def build_summary(
     notes: list[str],
 ) -> RepoSummary:
     """Assemble a deterministic, size-bounded RepoSummary from scan results."""
+    for manifest in manifests:
+        if manifest.name is not None:
+            manifest.name = _truncate(manifest.name)
+        if manifest.description is not None:
+            manifest.description = _truncate(manifest.description)
+        if manifest.version is not None:
+            manifest.version = _truncate(manifest.version)
     summary = RepoSummary(
         root_name=root.resolve().name or str(root),
         file_count=len(files),

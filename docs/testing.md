@@ -3,7 +3,7 @@
 ## Strategy
 
 - **pytest** is the test runner. The Anthropic API is **always mocked**; the suite must never make a network call. Enforce this by injecting a fake client (or monkeypatching the `anthropic` client factory) so a real key is never needed to run tests.
-- **Fixture repos** live under `tests/fixtures/` (`python_repo/`, `node_repo/`, `go_repo/`, `mixed_repo/`). Tests point the scanner at these directories and assert on the resulting `RepoSummary`. Empty and synthetic trees (for example the size-cap test) are built in pytest's `tmp_path`.
+- **Fixture repos** live under `tests/fixtures/` (`python_repo/`, `node_repo/`, `go_repo/`, `mixed_repo/`, `rust_repo/`, `php_repo/`, `dart_repo/`, `ruby_repo/`). Tests point the scanner at these directories and assert on the resulting `RepoSummary`. Empty and synthetic trees (for example the size-cap test) are built in pytest's `tmp_path`.
 - **Unit tests** cover pure logic:
   - `test_scanner.py`: ignore rules (`.gitignore` + built-ins), secret/binary skipping, unreadable-file handling, size caps.
   - `test_detect.py`: language weighting, manifest parsing (JSON/TOML/YAML) including malformed manifests.
