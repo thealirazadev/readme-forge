@@ -94,7 +94,7 @@ All of the above must pass. Tests never hit the network; the Anthropic API is mo
 readme-forge/
   src/readme_forge/     # package: CLI, scanner, summary, API client, renderer
   tests/                # pytest suite with fixture repos and a mocked API
-  docs/                 # PRD, architecture, rules, design, phases, testing, memory, checklist
+  docs/                 # architecture, design (CLI UX), testing, design decisions
   pyproject.toml        # packaging + console entry point + pinned deps
   .env.example          # ANTHROPIC_API_KEY and optional README_FORGE_MODEL
   README.md

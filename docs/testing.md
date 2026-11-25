@@ -3,7 +3,7 @@
 ## Strategy
 
 - **pytest** is the test runner. The Anthropic API is **always mocked**; the suite must never make a network call. Enforce this by injecting a fake client (or monkeypatching the `anthropic` client factory) so a real key is never needed to run tests.
-- **Fixture repos** live under `tests/fixtures/` (for example `python_repo/`, `node_repo/`, `go_repo/`, `empty_repo/`, `mixed_repo/`). Tests point the scanner at these directories and assert on the resulting `RepoSummary`.
+- **Fixture repos** live under `tests/fixtures/` (`python_repo/`, `node_repo/`, `go_repo/`, `mixed_repo/`). Tests point the scanner at these directories and assert on the resulting `RepoSummary`. Empty and synthetic trees (for example the size-cap test) are built in pytest's `tmp_path`.
 - **Unit tests** cover pure logic:
   - `test_scanner.py`: ignore rules (`.gitignore` + built-ins), secret/binary skipping, unreadable-file handling, size caps.
   - `test_detect.py`: language weighting, manifest parsing (JSON/TOML/YAML) including malformed manifests.
@@ -11,7 +11,7 @@
   - `test_api.py`: prompt building from a summary; error mapping for network / 429 / 401 / other, using a mocked client that raises the corresponding SDK exceptions.
   - `test_renderer.py`: preview rendering, `NO_COLOR`/non-TTY color disabling, confirm-before-write decision logic.
   - `test_cli.py`: end-to-end via click's `CliRunner` with the client mocked. Covers happy path plus unhappy paths (not a directory, empty repo, existing README without `--overwrite`, missing key, simulated API errors, `--dry-run` vs write, `--quiet` vs `--verbose`).
-- **Manual QA** (not automated) covers real API behavior and terminal appearance: run the CLI against a real repo with a real key, confirm the preview looks right, color on/off, progress indicators, and that the write gate behaves interactively. See `phases.md` manual checklists.
+- **Manual QA** (not automated) covers real API behavior and terminal appearance: run the CLI against a real repo with a real key, confirm the preview looks right, color on/off, progress indicators, and that the write gate behaves interactively.
 
 ## What to assert
 
@@ -47,11 +47,10 @@ Tests:
 pytest
 ```
 
-Tests with coverage (optional, for local inspection):
-
-```
-pytest --cov=readme_forge --cov-report=term-missing
-```
+Coverage runs as part of every `pytest` invocation: `pyproject.toml` sets
+`addopts = "--cov=readme_forge --cov-report=term-missing:skip-covered"` and
+`[tool.coverage.report] fail_under = 90`, so the run fails if line coverage drops below 90
+percent.
 
 Build the distribution:
 
@@ -59,13 +58,14 @@ Build the distribution:
 python -m build
 ```
 
-## Gate
+## CI
 
-A feature is not "done" until, on a clean checkout of that commit:
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request against `main`,
+on Python 3.10 and 3.12:
 
-- `pip install -e ".[dev]"` succeeds,
-- `ruff check .` passes,
-- `black --check .` passes,
-- `pytest` passes with no network access.
+1. `pip install -r requirements.lock`, then `pip install -e ".[dev]"`
+2. `ruff check .`
+3. `black --check .`
+4. `pytest` (with the 90 percent coverage gate from `pyproject.toml`)
 
-The build (`python -m build`) and the full test suite must pass before a feature is considered complete and before publishing.
+CI does not run `python -m build`; build the distribution locally before a release.
