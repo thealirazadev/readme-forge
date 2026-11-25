@@ -2,7 +2,7 @@
 
 ## Overview
 
-readme-forge is a single-process CLI. It reads a local repository, produces a structured summary, asks the Anthropic Claude API to draft a README from that summary, previews the result, and writes it after confirmation. There is no server and no persistent storage beyond the written file and an optional config file.
+readme-forge is a single-process CLI. It reads a local repository, produces a structured summary, asks the Anthropic Claude API to draft a README from that summary, previews the result, and writes it after confirmation. There is no server and no persistent storage beyond the written file.
 
 ## End-to-end flow
 
@@ -27,7 +27,7 @@ Step by step:
 6. **Preview.** Render the returned Markdown with rich. Show target path and whether it exists.
 7. **Write.** If `--dry-run`, stop after preview. Otherwise, if the target exists and `--overwrite` is not set, ask for confirmation. Write on approval.
 
-## Proposed folder / file tree
+## Folder / file tree
 
 ```
 readme-forge/
@@ -49,7 +49,7 @@ readme-forge/
       logging_setup.py      # quiet/verbose logging config
   tests/
     conftest.py             # fixtures: fake repos, mocked anthropic client
-    fixtures/               # sample repos (python, node, go, empty, mixed)
+    fixtures/               # sample repos (python, node, go, mixed)
     test_scanner.py
     test_detect.py
     test_summary.py
@@ -57,7 +57,7 @@ readme-forge/
     test_cli.py             # click CliRunner, covers happy + unhappy paths
     test_renderer.py
   docs/
-    PRD.md architecture.md rules.md design.md phases.md testing.md memory.md launch-checklist.md
+    architecture.md design.md testing.md decisions.md
 ```
 
 ## Tech stack with rationale
@@ -123,14 +123,14 @@ Config:
   color: bool                    # resolved from NO_COLOR + TTY detection
 ```
 
-Recognized manifest kinds (initial set): `package.json`, `pyproject.toml`, `setup.py`, `setup.cfg`, `requirements.txt`, `composer.json`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `Gemfile`, `build.gradle`, `pom.xml`.
+Recognized manifest kinds: `package.json`, `pyproject.toml`, `setup.py`, `setup.cfg`, `requirements.txt`, `composer.json`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `Gemfile`, `build.gradle`, `pom.xml`. The scanner reads the contents of all of these; fields are currently extracted from `package.json`, `pyproject.toml`, and `go.mod`.
 
 Default sections: `overview`, `features`, `tech stack`, `prerequisites`, `installation`, `usage`, `project structure`, `license`.
 
 ## Where state lives
 
 - **No persistent state** beyond the written `README.md`.
-- **Optional config file** (backlog, not Phase 1): a project-local `.readme-forge.toml` may hold default sections/model. If present it is read at startup; flags always win.
+- **No config file.** Defaults come from flags and environment variables only.
 - **Runtime state** is in-memory only (Config, RepoSummary).
 - **Secrets** live only in the environment / `.env`, never written anywhere by the tool.
 
