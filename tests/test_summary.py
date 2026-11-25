@@ -110,3 +110,18 @@ def test_long_manifest_description_is_truncated(tmp_path: Path) -> None:
     assert description is not None
     assert len(description) == MAX_STRING_LEN
     assert description.endswith("…")
+
+
+def test_entry_points_are_sorted_and_found_in_subdirectories(tmp_path: Path) -> None:
+    (tmp_path / "main.py").write_text("print('hi')\n")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__main__.py").write_text("print('hi')\n")
+    (tmp_path / "pkg" / "helpers.py").write_text("x = 1\n")
+    assert _summarize(tmp_path).entry_points == ["main.py", "pkg/__main__.py"]
+
+
+def test_license_hint_names_the_license_file(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    assert _summarize(tmp_path).license_hint is None
+    (tmp_path / "LICENSE.md").write_text("MIT License\n")
+    assert _summarize(tmp_path).license_hint == "LICENSE.md"
