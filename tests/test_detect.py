@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from readme_forge.detect import (
     detect_languages,
     parse_manifests,
@@ -101,3 +103,107 @@ def test_parse_manifests_skips_unrecognized_filenames() -> None:
     manifests = parse_manifests({"random.txt": "hello"}, notes)
     assert manifests == []
     assert notes == []
+
+
+def test_parse_package_json_non_object_is_noted_not_raised() -> None:
+    notes: list[str] = []
+    manifests = parse_manifests({"package.json": "[1, 2, 3]"}, notes)
+    assert manifests == []
+    assert any("malformed manifest" in n for n in notes)
+
+
+def test_parse_pyproject_toml_non_table_project_does_not_raise() -> None:
+    notes: list[str] = []
+    manifests = parse_manifests({"pyproject.toml": 'project = "oops"\n'}, notes)
+    assert len(manifests) == 1
+    assert manifests[0].name is None
+    assert manifests[0].dependencies == []
+
+
+def _parse_fixture(fixtures_dir: Path, repo: str, filename: str) -> list:
+    notes: list[str] = []
+    content = (fixtures_dir / repo / filename).read_text(encoding="utf-8")
+    manifests = parse_manifests({filename: content}, notes)
+    assert notes == []
+    return manifests
+
+
+def test_parse_cargo_toml_fixture(fixtures_dir: Path) -> None:
+    [m] = _parse_fixture(fixtures_dir, "rust_repo", "Cargo.toml")
+    assert m.kind == "Cargo.toml"
+    assert m.name == "samplers"
+    assert m.version == "0.2.0"
+    assert m.description == "A sample Rust crate"
+    assert m.dependencies == ["serde", "clap", "assert_cmd"]
+    assert m.scripts == {}
+
+
+def test_parse_cargo_toml_workspace_without_package() -> None:
+    notes: list[str] = []
+    content = '[workspace]\nmembers = ["a", "b"]\n'
+    [m] = parse_manifests({"Cargo.toml": content}, notes)
+    assert m.name is None
+    assert m.dependencies == []
+
+
+def test_parse_cargo_toml_malformed_is_noted_not_raised() -> None:
+    notes: list[str] = []
+    assert parse_manifests({"Cargo.toml": "[package\nname = "}, notes) == []
+    assert any("malformed manifest" in n for n in notes)
+
+
+def test_parse_composer_json_fixture(fixtures_dir: Path) -> None:
+    [m] = _parse_fixture(fixtures_dir, "php_repo", "composer.json")
+    assert m.kind == "composer.json"
+    assert m.name == "acme/samplephp"
+    assert m.version == "1.4.0"
+    assert m.description == "A sample PHP package"
+    assert m.dependencies == ["php", "guzzlehttp/guzzle", "phpunit/phpunit"]
+    assert m.scripts == {"test": "phpunit", "check": "@lint && @test"}
+
+
+def test_parse_composer_json_malformed_is_noted_not_raised() -> None:
+    notes: list[str] = []
+    assert parse_manifests({"composer.json": '{"name": '}, notes) == []
+    assert any("malformed manifest" in n for n in notes)
+
+
+def test_parse_pubspec_yaml_fixture(fixtures_dir: Path) -> None:
+    [m] = _parse_fixture(fixtures_dir, "dart_repo", "pubspec.yaml")
+    assert m.kind == "pubspec.yaml"
+    assert m.name == "sampledart"
+    assert m.version == "1.0.0+3"
+    assert m.description == "A sample Dart package."
+    assert m.dependencies == ["http", "path", "test"]
+
+
+def test_parse_pubspec_yaml_unquoted_numeric_version_is_a_string() -> None:
+    notes: list[str] = []
+    [m] = parse_manifests({"pubspec.yaml": "name: x\nversion: 1.0\n"}, notes)
+    assert m.version == "1.0"
+
+
+def test_parse_pubspec_yaml_malformed_is_noted_not_raised() -> None:
+    notes: list[str] = []
+    assert parse_manifests({"pubspec.yaml": "name: [unclosed\n"}, notes) == []
+    assert any("malformed manifest" in n for n in notes)
+
+
+def test_parse_pubspec_yaml_non_mapping_is_noted_not_raised() -> None:
+    notes: list[str] = []
+    assert parse_manifests({"pubspec.yaml": "- just\n- a list\n"}, notes) == []
+    assert any("malformed manifest" in n for n in notes)
+
+
+def test_parse_gemfile_fixture(fixtures_dir: Path) -> None:
+    [m] = _parse_fixture(fixtures_dir, "ruby_repo", "Gemfile")
+    assert m.kind == "Gemfile"
+    assert m.name is None
+    assert m.dependencies == ["rails", "puma", "rspec-rails"]
+
+
+def test_parse_manifests_finds_nested_manifest_by_filename() -> None:
+    notes: list[str] = []
+    [m] = parse_manifests({"crates/core/Cargo.toml": '[package]\nname = "core"\n'}, notes)
+    assert m.path == "crates/core/Cargo.toml"
+    assert m.name == "core"

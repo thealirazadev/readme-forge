@@ -49,7 +49,7 @@ readme-forge/
       logging_setup.py      # quiet/verbose logging config
   tests/
     conftest.py             # fixtures: fake repos, mocked anthropic client
-    fixtures/               # sample repos (python, node, go, mixed)
+    fixtures/               # sample repos (python, node, go, rust, php, dart, ruby, mixed)
     test_scanner.py
     test_detect.py
     test_summary.py
@@ -67,8 +67,8 @@ readme-forge/
 - **rich** — colored output, progress spinners, Markdown preview, and it honors `NO_COLOR` and non-TTY detection out of the box.
 - **anthropic** (official SDK) — typed client for the Claude API, handles retries and surfaces typed errors we can map to friendly messages.
 - **pathspec** — parse `.gitignore` patterns correctly (gitwildmatch) instead of hand-rolling glob logic.
-- **tomllib** (stdlib, 3.11+) with **tomli** fallback for 3.10 — parse `pyproject.toml`, `Cargo.toml`, `go.mod`-adjacent TOML.
-- **PyYAML** — parse `pubspec.yaml` and other YAML manifests.
+- **tomllib** (stdlib, 3.11+) with **tomli** fallback for 3.10: parse `pyproject.toml` and `Cargo.toml`.
+- **PyYAML**: parse `pubspec.yaml` with `safe_load`.
 - **python-dotenv** — load `.env` for local development without polluting the real environment.
 - **pytest** — test runner; the Anthropic client is mocked so tests never hit the network.
 - **Ruff + Black** — lint and format; fast, standard, low-config.
@@ -123,7 +123,7 @@ Config:
   color: bool                    # resolved from NO_COLOR + TTY detection
 ```
 
-Recognized manifest kinds: `package.json`, `pyproject.toml`, `setup.py`, `setup.cfg`, `requirements.txt`, `composer.json`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `Gemfile`, `build.gradle`, `pom.xml`. The scanner reads the contents of all of these; fields are currently extracted from `package.json`, `pyproject.toml`, and `go.mod`.
+Recognized manifest kinds: `package.json`, `pyproject.toml`, `setup.py`, `setup.cfg`, `requirements.txt`, `composer.json`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `Gemfile`, `build.gradle`, `pom.xml`. The scanner reads the contents of all of these; fields are extracted from `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `composer.json`, `pubspec.yaml`, and `Gemfile`.
 
 Default sections: `overview`, `features`, `tech stack`, `prerequisites`, `installation`, `usage`, `project structure`, `license`.
 

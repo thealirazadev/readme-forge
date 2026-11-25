@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from dataclasses import dataclass, field
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
+
+import yaml
 
 from readme_forge.scanner import ScannedFile
 
@@ -88,22 +92,43 @@ class Manifest:
     dependencies: list[str] = field(default_factory=list)
 
 
+def _table(value: Any) -> dict:
+    """Return value if it is a mapping, else an empty dict (manifests are user-controlled)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _text(value: Any) -> str | None:
+    """Return value if it is a string, else None."""
+    return value if isinstance(value, str) else None
+
+
+def _dependency_names(*tables: Any) -> list[str]:
+    """Collect dependency names (the keys) from one or more dependency tables, in order."""
+    names: list[str] = []
+    for table in tables:
+        for name in _table(table):
+            if isinstance(name, str) and name not in names:
+                names.append(name)
+    return names[:MAX_DEPENDENCIES]
+
+
 def _parse_package_json(path: str, content: str, notes: list[str]) -> Manifest | None:
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
+        data = None
+    if not isinstance(data, dict):
         notes.append(f"skipped malformed manifest: {path}")
         return None
-    deps = list(data.get("dependencies", {}) or {}) + list(data.get("devDependencies", {}) or {})
-    scripts = {k: v for k, v in (data.get("scripts") or {}).items() if isinstance(v, str)}
+    scripts = {k: v for k, v in _table(data.get("scripts")).items() if isinstance(v, str)}
     return Manifest(
         kind="package.json",
         path=path,
-        name=data.get("name"),
-        description=data.get("description"),
-        version=data.get("version"),
+        name=_text(data.get("name")),
+        description=_text(data.get("description")),
+        version=_text(data.get("version")),
         scripts=scripts,
-        dependencies=deps[:MAX_DEPENDENCIES],
+        dependencies=_dependency_names(data.get("dependencies"), data.get("devDependencies")),
     )
 
 
@@ -113,18 +138,100 @@ def _parse_pyproject_toml(path: str, content: str, notes: list[str]) -> Manifest
     except tomllib.TOMLDecodeError:
         notes.append(f"skipped malformed manifest: {path}")
         return None
-    project = data.get("project") or {}
-    deps = list(project.get("dependencies") or [])
-    scripts = dict(project.get("scripts") or {})
+    project = _table(data.get("project"))
+    raw_deps = project.get("dependencies")
+    deps = [d for d in raw_deps if isinstance(d, str)] if isinstance(raw_deps, list) else []
+    scripts = {k: v for k, v in _table(project.get("scripts")).items() if isinstance(v, str)}
     return Manifest(
         kind="pyproject.toml",
         path=path,
-        name=project.get("name"),
-        description=project.get("description"),
-        version=project.get("version"),
+        name=_text(project.get("name")),
+        description=_text(project.get("description")),
+        version=_text(project.get("version")),
         scripts=scripts,
         dependencies=deps[:MAX_DEPENDENCIES],
     )
+
+
+def _parse_cargo_toml(path: str, content: str, notes: list[str]) -> Manifest | None:
+    try:
+        data = tomllib.loads(content)
+    except tomllib.TOMLDecodeError:
+        notes.append(f"skipped malformed manifest: {path}")
+        return None
+    package = _table(data.get("package"))
+    return Manifest(
+        kind="Cargo.toml",
+        path=path,
+        name=_text(package.get("name")),
+        description=_text(package.get("description")),
+        version=_text(package.get("version")),
+        dependencies=_dependency_names(
+            data.get("dependencies"), data.get("dev-dependencies"), data.get("build-dependencies")
+        ),
+    )
+
+
+def _parse_composer_json(path: str, content: str, notes: list[str]) -> Manifest | None:
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        data = None
+    if not isinstance(data, dict):
+        notes.append(f"skipped malformed manifest: {path}")
+        return None
+    scripts: dict[str, str] = {}
+    for key, value in _table(data.get("scripts")).items():
+        if isinstance(value, str):
+            scripts[key] = value
+        elif isinstance(value, list) and value and all(isinstance(v, str) for v in value):
+            # Composer runs a list of commands in order and stops at the first failure.
+            scripts[key] = " && ".join(value)
+    return Manifest(
+        kind="composer.json",
+        path=path,
+        name=_text(data.get("name")),
+        description=_text(data.get("description")),
+        version=_text(data.get("version")),
+        scripts=scripts,
+        dependencies=_dependency_names(data.get("require"), data.get("require-dev")),
+    )
+
+
+def _parse_pubspec_yaml(path: str, content: str, notes: list[str]) -> Manifest | None:
+    try:
+        data = yaml.safe_load(content)
+    except yaml.YAMLError:
+        data = None
+    if not isinstance(data, dict):
+        notes.append(f"skipped malformed manifest: {path}")
+        return None
+    version = data.get("version")
+    return Manifest(
+        kind="pubspec.yaml",
+        path=path,
+        name=_text(data.get("name")),
+        description=_text(data.get("description")),
+        # An unquoted version such as 1.0 is loaded by YAML as a float.
+        version=(
+            str(version)
+            if isinstance(version, (str, int, float)) and not isinstance(version, bool)
+            else None
+        ),
+        dependencies=_dependency_names(data.get("dependencies"), data.get("dev_dependencies")),
+    )
+
+
+_GEM_LINE = re.compile(r"""^\s*gem\s*\(?\s*["']([^"']+)["']""")
+
+
+def _parse_gemfile(path: str, content: str, notes: list[str]) -> Manifest | None:
+    deps: list[str] = []
+    for line in content.splitlines():
+        match = _GEM_LINE.match(line)
+        if match and match.group(1) not in deps:
+            deps.append(match.group(1))
+    return Manifest(kind="Gemfile", path=path, dependencies=deps[:MAX_DEPENDENCIES])
 
 
 def _parse_go_mod(path: str, content: str, notes: list[str]) -> Manifest | None:
@@ -156,6 +263,10 @@ _PARSERS = {
     "package.json": _parse_package_json,
     "pyproject.toml": _parse_pyproject_toml,
     "go.mod": _parse_go_mod,
+    "Cargo.toml": _parse_cargo_toml,
+    "composer.json": _parse_composer_json,
+    "pubspec.yaml": _parse_pubspec_yaml,
+    "Gemfile": _parse_gemfile,
 }
 
 
