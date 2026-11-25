@@ -36,13 +36,18 @@ The walk sorts directory and file names, languages are sorted by weight then nam
 path, and `to_json` uses `sort_keys=True`. A deterministic summary makes the prompt reproducible,
 makes tests stable, and means two runs on an unchanged repository send the same request.
 
-## 5. Parse a few manifests well
+## 5. Parse the common manifests, tolerate bad ones
 
-Only `package.json`, `pyproject.toml`, and `go.mod` have parsers. Other recognized manifests are
-still counted as files and influence language detection, but their fields are not extracted. A
-malformed manifest (bad JSON or TOML) is skipped with a note rather than failing the run. TOML is
-read with the stdlib `tomllib` on Python 3.11+ and the `tomli` backport on 3.10, which is pinned
-with an environment marker so 3.11+ installs do not pull it in.
+`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `composer.json`, `pubspec.yaml`, and
+`Gemfile` have parsers. The remaining recognized manifests (`setup.py`, `setup.cfg`,
+`requirements.txt`, `build.gradle`, `pom.xml`) are still counted as files and influence language
+detection, but their fields are not extracted. JSON manifests use `json`, `pubspec.yaml` uses
+PyYAML's `safe_load`, and the `Gemfile` is read with a line parser that picks up `gem "name"`
+declarations without evaluating any Ruby. A malformed manifest (bad JSON, TOML, or YAML, or a
+document whose top level is not a mapping) is skipped with a note rather than failing the run,
+and fields of the wrong type are dropped instead of raising. TOML is read with the stdlib
+`tomllib` on Python 3.11+ and the `tomli` backport on 3.10, which is pinned with an environment
+marker so 3.11+ installs do not pull it in.
 
 ## 6. The write gate is a pure decision function
 
@@ -73,8 +78,11 @@ genuine bug into exit 1 with a friendly line. Tracebacks are printed only with `
 
 ## 9. Key handling and ordering of checks
 
-The API key is read from `ANTHROPIC_API_KEY`, with `.env` loaded through `python-dotenv`, and
-there is no fallback value. It is passed straight to the SDK client and never printed. The key is
+The API key is read from `ANTHROPIC_API_KEY`, with a `.env` found from the current working
+directory upward loaded through `python-dotenv` (it never overrides a variable that is already
+set), and there is no fallback value. The search starts at the working directory on purpose: a
+bare `load_dotenv()` searches from the calling module's file, which for an installed copy is
+`site-packages`, so a `.env` next to the user would never be found. It is passed straight to the SDK client and never printed. The key is
 looked up only after scanning, so `--summary-json` and the empty-repository path (which exits 0
 with a message instead of calling the API with nothing useful) work without a key. The model id
 resolves as `--model`, then `README_FORGE_MODEL`, then the built-in default.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest import mock
 
@@ -173,3 +174,18 @@ def test_output_into_a_missing_directory_creates_it(
         result = runner.invoke(main, [str(tmp_path), "--output", str(target)])
     assert result.exit_code == 0, result.output
     assert target.read_text() == "# New\n"
+
+
+def test_api_key_is_read_from_dotenv_in_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from readme_forge.cli import _get_api_key
+
+    (tmp_path / ".env").write_text("ANTHROPIC_API_KEY=sk-ant-from-dotenv\n", encoding="utf-8")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    try:
+        assert _get_api_key() == "sk-ant-from-dotenv"
+    finally:
+        # load_dotenv writes os.environ directly, outside monkeypatch's bookkeeping.
+        os.environ.pop("ANTHROPIC_API_KEY", None)
